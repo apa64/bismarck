@@ -22,6 +22,10 @@ run
 
 ## Code
 
+### `bismarck.p8`
+
+The game.
+
 ### `tinyecs-1.1.lua`
 
 [KatrinaKitten's Tiny ECS Framework v1.1](https://www.lexaloffle.com/bbs/?tid=39021) implementation, added in carts with `#include`.
