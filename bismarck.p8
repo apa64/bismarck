@@ -3,7 +3,7 @@ version 29
 __lua__
 -- last stand of the bismarck
 -- by @apa64
---  v. 0.1
+--  v. 0.2-SNAPSHOT
 -- with tinyecs 1.1 by @katrinakitten https://www.lexaloffle.com/bbs/?tid=39021
 
 --[[ MIT License
@@ -34,68 +34,213 @@ software.
 ents = {}
 
 function _init()
-  dstr1 = {}
-  dstr1.pos = {}
-  dstr1.pos.x = 20
-  dstr1.pos.y = 20
-  dstr1.drawable = {}
-  dstr1.drawable.spr = 3
-  dstr1.t = 0
-  dstr1.wait = 0.05
-  dstr1.speed = 1
-  dstr1.r = 55
-  dstr1.angle = 0
-  originx = 63
-  originy = 63
-
-  sight = {}
-  sight.drawable = {}
-  sight.drawable.spr = 48
-  sight.pos = {}
-  sight.pos.x = 40
-  sight.pos.y = 40
   -- create entities
+  local e_bm = mk_bm()
+  local e_dstr1 = mk_dstr()
+  local e_dstr2 = mk_dstr()
+  local e_sight = mk_sight()
   -- store ents in master table
+  add(ents, e_bm)
+  add(ents, e_dstr1)
+  add(ents, e_dstr2)
+  add(ents, e_sight)
 end
 
 function _update()
-  if (t() - dstr1.t > dstr1.wait) then
-    --dstr1.pos.x = (dstr1.pos.x + 1) % 128
-    dstr1.t = t()
-    --moves along track
-    dstr1.angle += dstr1.speed
-    dstr1.pos.x = originx + dstr1.r * cos(dstr1.angle/360)
-    dstr1.pos.y = originy + dstr1.r * sin(dstr1.angle/360)
-    if dstr1.angle>360 then dstr1.angle=0
-    elseif dstr1.angle<0 then dstr1.angle=360
-    end
-  end
-  if (btn(0)) sight.pos.x -= 8
-  if (btn(1)) sight.pos.x += 8
-  if (btn(2)) sight.pos.y -= 8
-  if (btn(3)) sight.pos.y += 8
-
   -- run systems
+  s_control(ents)
+  s_mvtrack(ents)
 end
 
 function _draw()
   cls(1)
   map()
-  print("last stand of the bismarck",12,2)
-  print(flr(t()),0,8)
-  spr(dstr1.drawable.spr, dstr1.pos.x, dstr1.pos.y)
-  spr(sight.drawable.spr, sight.pos.x, sight.pos.y)
+  print_xcenter("last stand of the bismarck", 2, 13)
+  print_xcenter("0000 lives lost", 122, 5)
   -- run draw system
+  s_draw(ents)
 end
 
 -->8
 -- #################### entities
+
+-- bismarck
+function mk_bm()
+  local e = ent()
+  e += c_pos(63, 63)
+  e += c_appearance(16, 8, 8)
+  return e
+end
+
+-- a destroyer
+function mk_dstr()
+  local e = ent()
+  e += c_pos(20, 20)
+  e += c_appearance(3, 8, 8)
+  e += c_mvtrack()
+  return e
+end
+
+-- gunsight
+function mk_sight()
+  local e = ent()
+  e += c_pos(100, 100)
+  e += c_appearance(48, 7, 7)
+  e += c_control(2)
+  return e
+end
+
+-- gun bullet
+function mk_bullet(x, y)
+  local e = ent()
+  e += c_pos(x, y)
+  return e
+end
 -->8
 -- ################## components
+
+-- x,y position.
+c_pos = function(x, y)
+  return cmp("pos",
+    { x = x, y = y })
+end
+
+-- has drawable with size.
+c_appearance = function(sprite, w, h)
+  w = w or 8
+  h = h or 8
+  return cmp("appearance",
+    { sprite = sprite,
+      w = w,
+      h = h })
+end
+
+-- controllable tag.
+c_control = function(speed)
+  speed = speed or 1
+  return cmp("control",
+    {
+      speed = speed
+    })
+end
+
+-- movement track params
+c_mvtrack = function (params)
+  return cmp("mvtrack",
+    {
+      t = 0,
+      wait = 0.05,
+      speed = 1,
+      r = 55,
+      angle = 0
+    })
+end
+
 -->8
 -- ##################### systems
+
+-- move along track
+s_mvtrack = sys({"pos", "mvtrack"},
+function(e)
+  -- TODO: rewrite
+  originx = 63
+  originy = 63
+  if (t() - e.mvtrack.t > e.mvtrack.wait) then
+    --dstr1.pos.x = (dstr1.pos.x + 1) % 128
+    e.mvtrack.t = t()
+    --moves along track
+    e.mvtrack.angle += e.mvtrack.speed
+    e.pos.x = originx + e.mvtrack.r * cos(e.mvtrack.angle/360)
+    e.pos.y = originy + e.mvtrack.r * sin(e.mvtrack.angle/360)
+    if e.mvtrack.angle>360 then e.mvtrack.angle=0
+    elseif e.mvtrack.angle<0 then e.mvtrack.angle=360
+    end
+  end
+end)
+
+-- control system.
+s_control = sys({"control", "pos", "appearance"},
+function(e)
+  local newx = e.pos.x
+  local newy = e.pos.y
+  if (btn(0)) newx -= e.control.speed
+  if (btn(1)) newx += e.control.speed
+  if (btn(2)) newy -= e.control.speed
+  if (btn(3)) newy += e.control.speed
+  -- TODO: shoot
+  -- world borders
+  e.pos.x = mid(0, newx, 127-e.appearance.w+1)
+  e.pos.y = mid(0, newy, 127-e.appearance.h+1)
+end)
+
+-- TODO: shoot bullet
+s_shoot = sys()
+
+-- TODO: gunsight sway
+s_sway = sys()
+
+-- drawing system.
+s_draw = sys({"pos", "appearance"},
+function(e)
+  spr(e.appearance.sprite, e.pos.x, e.pos.y)
+end)
+
 -->8
 -- ##################### helpers
+
+-- checks if e would collide
+-- with any entity with sprite
+-- in ents.
+-- e    - entity to compare
+-- newx - e is going there
+-- newy - e is going there
+function is_entity_collision(e, newx, newy)
+  -- note: performance problem
+  -- when there's a lot of e's
+  -- b/c we iterate all twice on
+  -- every update
+  for e2 in all(ents) do
+    if (e != e2
+    and e2.appearance
+    and e2.pos
+    and overlap(e, newx, newy, e2)) then
+      return true
+    end
+  end
+  return false
+end
+
+-- detect if box a and b overlap.
+-- both a and b must have comps
+-- appearance, pos
+-- original: https://mboffin.itch.io/pico8-overlap
+function overlap(a,newx,newy,b)
+  assert(a.appearance)
+  assert(b.appearance)
+  assert(b.pos)
+  return not (newx >= b.pos.x + b.appearance.w
+           or newy >= b.pos.y + b.appearance.h
+           or newx + a.appearance.w <= b.pos.x
+           or newy + a.appearance.h <= b.pos.y)
+end
+
+-- print string x-centered
+function print_xcenter(string, y, color)
+  local x = str_xcenter(string)
+  print(string, x, y, color)
+end
+
+-- center align string at given x coordinate
+-- x defaults to 64 (screen center)
+-- support for wide glyphs
+-- by @sparr /pico8lib
+function str_xcenter(str, x)
+  local w = 0
+  for i = 1, #str do
+   w += (sub(str,i,i) > "\127" and 4 or 2)
+  end
+  return (x or 64) - w
+end
 
 __gfx__
 00000000111111111111111100600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000

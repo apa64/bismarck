@@ -22,17 +22,19 @@ run
 
 <img src="https://user-images.githubusercontent.com/2697454/94450546-143ab700-01b6-11eb-8c39-28c813f49e6f.gif" width="256" height="256" alt="bismarck-0.1.gif" />
 
+## Design
+
+TODO: add some documentation
+
+<img src="https://user-images.githubusercontent.com/2697454/94450715-44825580-01b6-11eb-9001-7726f1e127dc.jpg" width="256" alt="IMG_20200925_202947"/>
+
+[gamedev-mökki-2020.pdf](https://github.com/apa64/bismarck/files/5293241/gamedev-mokki-2020.pdf)
+
 ## Code
 
 ### `bismarck.p8`
 
 The game.
-
-#### Design
-
-<img src="https://user-images.githubusercontent.com/2697454/94450715-44825580-01b6-11eb-9001-7726f1e127dc.jpg" width="256" alt="IMG_20200925_202947"/>
-
-[gamedev-mökki-2020.pdf](https://github.com/apa64/bismarck/files/5293241/gamedev-mokki-2020.pdf)
 
 ### `tinyecs-1.1.lua`
 
