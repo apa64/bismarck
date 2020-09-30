@@ -24,6 +24,8 @@ run
 
 ## Design
 
+The Bismarck is being shelled by the Royal Navy destroyers. Bismarck shoots back.
+
 TODO: add some documentation
 
 <img src="https://user-images.githubusercontent.com/2697454/94450715-44825580-01b6-11eb-9001-7726f1e127dc.jpg" width="256" alt="IMG_20200925_202947"/>
