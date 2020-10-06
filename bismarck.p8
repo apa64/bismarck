@@ -49,7 +49,9 @@ end
 function _update()
   -- run systems
   s_control(ents)
+  s_shoot(ents)
   s_mvtrack(ents)
+  s_mv_bullet(ents)
 end
 
 function _draw()
@@ -57,8 +59,9 @@ function _draw()
   map()
   print_xcenter("last stand of the bismarck", 2, 13)
   print_xcenter("0000 lives lost", 122, 5)
-  -- run draw system
+  -- run draw systems
   s_draw(ents)
+  s_draw_bullet(ents)
 end
 
 -->8
@@ -91,9 +94,10 @@ function mk_sight()
 end
 
 -- gun bullet
-function mk_bullet(x, y)
+-- create animated bullet
+function mk_bullet(x0, y0, x1, y1)
   local e = ent()
-  e += c_pos(x, y)
+  e += c_line(x0, y0, x1, y1)
   return e
 end
 -->8
@@ -125,7 +129,7 @@ c_control = function(speed)
 end
 
 -- movement track params
-c_mvtrack = function (params)
+c_mvtrack = function(params)
   return cmp("mvtrack",
     {
       t = 0,
@@ -136,10 +140,21 @@ c_mvtrack = function (params)
     })
 end
 
+-- bullet trajectory
+c_line = function(x0, y0, x1, y1)
+  return cmp("line", {
+    x0 = x0,
+    y0 = y0,
+    x1 = x1,
+    y1 = y1
+  })
+end
+
 -->8
 -- ##################### systems
 
 -- move along track
+-- see this for anim: https://mboffin.itch.io/pico8-simple-animation
 s_mvtrack = sys({"pos", "mvtrack"},
 function(e)
   -- TODO: rewrite
@@ -158,7 +173,7 @@ function(e)
   end
 end)
 
--- control system.
+-- gunsight control system.
 s_control = sys({"control", "pos", "appearance"},
 function(e)
   local newx = e.pos.x
@@ -167,23 +182,58 @@ function(e)
   if (btn(1)) newx += e.control.speed
   if (btn(2)) newy -= e.control.speed
   if (btn(3)) newy += e.control.speed
-  -- TODO: shoot
   -- world borders
   e.pos.x = mid(0, newx, 127-e.appearance.w+1)
   e.pos.y = mid(0, newy, 127-e.appearance.h+1)
 end)
 
--- TODO: shoot bullet
-s_shoot = sys()
+-- shoot to where the sight is
+s_shoot = sys({"control", "pos", "appearance"},
+function(e)
+  local target_x = 0
+  local target_y = 0
+  -- O
+  if (btnp(4)) then
+    -- TODO check if can shoot
 
--- TODO: gunsight sway
-s_sway = sys()
+    bm_x = 63
+    bm_y = 63
+    target_x = e.pos.x + (e.appearance.w/2)
+    target_y = e.pos.y + (e.appearance.h/2)
+    local e_bullet = mk_bullet(bm_x, bm_y, target_x, target_y)
+    add(ents, e_bullet)
+  end
+  -- X
+  --if (btnp(5)) then
+  --end
+end)
 
--- drawing system.
+-- sprite drawing system.
 s_draw = sys({"pos", "appearance"},
 function(e)
   spr(e.appearance.sprite, e.pos.x, e.pos.y)
 end)
+
+-- bullet drawing system.
+s_draw_bullet = sys({"line"},
+function(e)
+  -- TODO bullet lifetime and movement
+  line(e.line.x0, e.line.y0, e.line.x1, e.line.y1, 14)
+end)
+
+-- move bullet 1 step from start to end
+s_mv_bullet = sys({"line"},
+function(e)
+  -- TODO: real impl
+  e.line.x1 += 1 -- 1 step to end
+  e.line.y1 += 1 -- 1 step to end
+  if (e.line.x1 > 127 or e.line.y1 > 127) then
+    del(ents, e)
+  end
+end)
+
+-- TODO: gunsight sway
+s_sway = sys()
 
 -->8
 -- ##################### helpers
