@@ -20,7 +20,7 @@ load bismarck.p8
 run
 ```
 
-<img src="https://user-images.githubusercontent.com/2697454/94450546-143ab700-01b6-11eb-8c39-28c813f49e6f.gif" width="256" height="256" alt="bismarck-0.1.gif" />
+<img src="https://user-images.githubusercontent.com/2697454/95657992-3e7a6600-0b20-11eb-8aa0-c3df88eff971.gif" width="256" alt="v0.2"/>
 
 ## Design
 

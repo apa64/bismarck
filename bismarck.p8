@@ -3,7 +3,7 @@ version 29
 __lua__
 -- last stand of the bismarck
 -- by @apa64
---  v. 0.2
+--  v. 0.3-SNAPSHOT
 -- with tinyecs 1.1 by @katrinakitten https://www.lexaloffle.com/bbs/?tid=39021
 
 --[[ MIT License
