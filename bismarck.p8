@@ -32,11 +32,13 @@ software.
 
 -- master container of entities
 ents = {}
-
-debug = 0
-
+-- debug mode on/off
+debug = false
+-- sounds
 sound_explosion = 0
 sound_shot = 1
+
+-- ########### special functions #############################################
 
 function _init()
   -- create entities
@@ -64,23 +66,24 @@ function _draw()
   map()
   print_xcenter("last stand of the bismarck", 2, 13)
   print_xcenter("0000 lives lost", 122, 5)
-  -- run draw systems
-  s_draw(ents)
-  s_drawbullet(ents)
 
   -- draw bm
   spr(16, 60, 60)
   spr(32, 60, 68)
+
+  -- run draw systems
+  s_draw(ents)
+  s_drawbullet(ents)
   
-  if (debug == 1) then
+  if (debug) then
     print("x:"..e_sight.pos.x, 86, 0, 14)
     print("y:"..e_sight.pos.y, 109, 0, 14)
-    print("dbg:"..debug, 108, 6, 14)
+    print("dbg:"..(debug and 't' or 'f'), 108, 6, 14)
   end
 end
 
 -->8
--- #################### entities
+-- #################### entities #############################################
 
 -- bismarck
 --[[
@@ -120,7 +123,7 @@ function mk_bullet(x0, y0, x1, y1)
   return e
 end
 -->8
--- ################## components
+-- ################## components #############################################
 
 -- x,y position.
 c_pos = function(x, y)
@@ -175,7 +178,7 @@ c_line = function(x0, y0, x1, y1)
 end
 
 -->8
--- ##################### systems
+-- ##################### systems #############################################
 
 -- move along track
 -- see this for anim: https://mboffin.itch.io/pico8-simple-animation
@@ -207,8 +210,8 @@ function(e)
   if (btn(2)) newy -= e.control.speed
   if (btn(3)) newy += e.control.speed
   -- world borders
-  e.pos.x = mid(0, newx, 127) -- -e.appearance.w+1)
-  e.pos.y = mid(0, newy, 127) -- -e.appearance.h+1)
+  e.pos.x = mid(0, newx, 127 - e.appearance.w + 1)
+  e.pos.y = mid(0, newy, 127 - e.appearance.h + 1)
 end)
 
 -- shoot to where the sight is
@@ -222,56 +225,58 @@ function(e)
     local bm_x = 63
     local bm_y = 63
     -- sight center
-    target_x = e.pos.x --+ (e.appearance.w/2)
-    target_y = e.pos.y --+ (e.appearance.h/2)
+    target_x = e.pos.x + (e.appearance.w/2)
+    target_y = e.pos.y + (e.appearance.h/2)
     local e_bullet = mk_bullet(bm_x, bm_y, target_x, target_y)
     add(ents, e_bullet)
     sfx(sound_shot)
   end
   -- X
   if (btnp(5)) then
-    debug = (debug + 1) % 2
+    debug = not debug
   end
-end)
-
--- sprite drawing system.
-s_draw = sys({"pos", "appearance"},
-function(e)
-  spr(e.appearance.sprite,
-    e.pos.x - (e.appearance.w/2) + 1,
-    e.pos.y - (e.appearance.h/2) + 1)
-end)
-
--- bullet drawing system.
-s_drawbullet = sys({"pos", "targetpos"},
-function(e)
-  line(e.pos.x, e.pos.y, e.targetpos.x, e.targetpos.y, 5)
-  pset(e.pos.x, e.pos.y, 14)
 end)
 
 -- move bullet 1 step from start to end
 s_mvbullet = sys({"pos", "targetpos"},
 function(e)
-  e.pos.x, e.pos.y = bulletvector(e.pos.x, e.pos.y, e.targetpos.x, e.targetpos.y)
-  
-  if (e.pos.x - e.appearance.w == e.targetpos.x or e.pos.y - e.appearance.h == e.targetpos.y) then
---    or e.pos.x < 0 or e.pos.x > 127 or e.pos.y < 0 or e.pos.y > 127) then
+  if (e.pos.x == e.targetpos.x or e.pos.y == e.targetpos.y) then
+    --    or e.pos.x < 0 or e.pos.x > 127 or e.pos.y < 0 or e.pos.y > 127) then
     del(ents, e)
   end
 
   -- collision detection
-  if (is_entity_collision(e, e.pos.x, e.pos.y)) then
-    -- TODO: hit
-    sfx(sound_explosion)
-    del(ents, e)
+if (is_entity_collision(e, e.pos.x, e.pos.y)) then
+  -- TODO: hit
+  sfx(sound_explosion)
+  del(ents, e)
   end
+  e.pos.x, e.pos.y = bulletvector(e.pos.x, e.pos.y, e.targetpos.x, e.targetpos.y)
 end)
 
 -- TODO: gunsight sway
 s_sway = sys()
 
+-- bullet drawing system.
+s_drawbullet = sys({"pos", "targetpos"},
+function(e)
+  if (debug) then
+    pset(e.targetpos.x, e.targetpos.y, 5)
+  end
+    --[[
+  line(e.pos.x, e.pos.y, e.targetpos.x, e.targetpos.y, 5)
+  pset(e.pos.x, e.pos.y, 14)
+  --]]
+end)
+
+-- sprite drawing system.
+s_draw = sys({"pos", "appearance"},
+function(e)
+  spr(e.appearance.sprite, e.pos.x, e.pos.y)
+end)
+
 -->8
--- ##################### helpers
+-- ##################### helpers #############################################
 
 -- checks if e would collide
 -- with any entity with sprite
