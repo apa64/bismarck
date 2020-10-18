@@ -37,35 +37,45 @@ debug = false
 -- sounds
 sound_explosion = 0
 sound_shot = 1
+e_bm = nil
 
 -- ########### special functions #############################################
 
 function _init()
+  -- todo move in entity or something
+  bullet_speed = 0.8
+  lives_lost = 0
+  bm_gun_ready_t = 0
+  bm_gun_rld_delay = 0.5
   -- create entities
-  --local e_bm = mk_bm()
+  e_bm = mk_bm()
   local e_dstr1 = mk_dstr()
-  local e_dstr2 = mk_dstr()
   e_sight = mk_sight()
   -- store ents in master table
-  --add(ents, e_bm)
+  add(ents, e_bm)
   add(ents, e_dstr1)
-  add(ents, e_dstr2)
   add(ents, e_sight)
 end
 
 function _update()
   -- run systems
   s_control(ents)
-  s_shoot(ents)
+  s_bmshoot(ents)
   s_mvtrack(ents)
   s_mvbullet(ents)
+  s_entcoll(ents)
+  s_dstrshoot(ents)
+  if (lives_lost > 1000) then
+    -- TODO: end game
+    print("todo end game")
+  end
 end
 
 function _draw()
   cls(1)
   map()
   print_xcenter("last stand of the bismarck", 2, 13)
-  print_xcenter("0000 lives lost", 122, 5)
+  print_xcenter(lives_lost.." lives lost", 122, 5)
 
   -- draw bm
   spr(16, 60, 60)
@@ -73,7 +83,6 @@ function _draw()
 
   -- run draw systems
   s_draw(ents)
-  s_drawbullet(ents)
   
   if (debug) then
     print("x:"..e_sight.pos.x, 86, 0, 14)
@@ -86,40 +95,50 @@ end
 -- #################### entities #############################################
 
 -- bismarck
---[[
 function mk_bm()
   local e = ent()
-  e += c_pos(63, 63)
-  e += c_appearance(16, 8, 8)
+  e += cmp("bm") -- type
+  e += c_pos(60, 60)
+  e += c_size(8, 16)
+  e += c_collidable()
   return e
 end
-]]--
 
 -- a destroyer
 function mk_dstr()
   local e = ent()
+  e += cmp("dstr")
   e += c_pos(20, 20)
-  e += c_appearance(3, 5, 8)
+  e += c_sprite(3)
+  e += c_size(5, 8)
   e += c_mvtrack()
+  e += c_collidable()
+  e += c_gun()
   return e
 end
 
 -- gunsight
 function mk_sight()
   local e = ent()
+  e += cmp("sight")
   e += c_pos(100, 100)
-  e += c_appearance(48, 7, 7)
+  e += c_sprite(48)
+  e += c_size(7, 7)
   e += c_control(2)
   return e
 end
 
 -- gun bullet
 -- create animated bullet
-function mk_bullet(x0, y0, x1, y1)
+function mk_bullet(x0, y0, x1, y1, shooter)
   local e = ent()
+  e += cmp("bullet")
   e += c_pos(x0, y0)
   e += c_targetpos(x1, y1)
-  e += c_appearance(49, 3, 3)
+  e += c_sprite(49)
+  e += c_size(3, 3)
+  e += c_collidable()
+  e += c_shooter(shooter)
   return e
 end
 -->8
@@ -131,50 +150,59 @@ c_pos = function(x, y)
     { x = x, y = y })
 end
 
+c_size = function(w, h)
+  w = w or 8
+  h = h or 8
+  return cmp("size",
+    { w = w, h = h })
+end
+
 c_targetpos = function(x, y)
   return cmp("targetpos",
     { x = x, y = y })
 end
 
+c_gun = function(rld_delay, rld_rnd)
+  rld_delay = rld_delay or 3
+  rld_rnd = rld_rnd or 3
+  return cmp("gun",
+    {
+      ready_t = rld_delay + rnd(rld_rnd),
+      rld_delay = rld_delay,
+      rld_rnd = rld_rnd
+   })
+end
+
 -- has drawable with size.
-c_appearance = function(sprite, w, h)
-  w = w or 8
-  h = h or 8
-  return cmp("appearance",
-    { sprite = sprite,
-      w = w,
-      h = h })
+c_sprite = function(sprite)
+  return cmp("sprite",
+    { sprite = sprite })
 end
 
 -- controllable tag.
 c_control = function(speed)
   speed = speed or 1
   return cmp("control",
-    {
-      speed = speed
-    })
+    { speed = speed })
 end
 
 -- movement track params
-c_mvtrack = function(params)
+c_mvtrack = function()
   return cmp("mvtrack",
     {
-      t = 0,
-      wait = 0.05,
-      speed = 1,
+      speed = 0.4,
       r = 55,
       angle = 0
     })
 end
 
--- bullet trajectory
-c_line = function(x0, y0, x1, y1)
-  return cmp("line", {
-    x0 = x0,
-    y0 = y0,
-    x1 = x1,
-    y1 = y1
-  })
+c_collidable = function()
+  return cmp("collidable")
+end
+
+c_shooter = function(shooter)
+  return cmp("shooter",
+    { shooter = shooter })
 end
 
 -->8
@@ -185,23 +213,33 @@ end
 s_mvtrack = sys({"pos", "mvtrack"},
 function(e)
   -- TODO: rewrite
-  originx = 63
-  originy = 63
-  if (t() - e.mvtrack.t > e.mvtrack.wait) then
-    --dstr1.pos.x = (dstr1.pos.x + 1) % 128
-    e.mvtrack.t = t()
-    --moves along track
-    e.mvtrack.angle += e.mvtrack.speed
-    e.pos.x = originx + e.mvtrack.r * cos(e.mvtrack.angle/360)
-    e.pos.y = originy + e.mvtrack.r * sin(e.mvtrack.angle/360)
-    if e.mvtrack.angle>360 then e.mvtrack.angle=0
-    elseif e.mvtrack.angle<0 then e.mvtrack.angle=360
-    end
+  originx = 70
+  originy = 70
+  --moves along track
+  e.mvtrack.angle += e.mvtrack.speed
+  e.pos.x = originx + e.mvtrack.r * cos(e.mvtrack.angle/360)
+  e.pos.y = originy + e.mvtrack.r * sin(e.mvtrack.angle/360)
+  if e.mvtrack.angle>360 then e.mvtrack.angle=0
+  elseif e.mvtrack.angle<0 then e.mvtrack.angle=360
   end
 end)
 
+-- move bullet 1 step from start to end
+s_mvbullet = sys({"pos", "targetpos"},
+function(e)
+  -- bullet at target
+  if (e.pos.x == e.targetpos.x or e.pos.y == e.targetpos.y) then
+    --    or e.pos.x < 0 or e.pos.x > 127 or e.pos.y < 0 or e.pos.y > 127) then
+    -- TODO: sfx shwoosh or splash
+    del(ents, e)
+    return
+  end
+  -- get next bullet position
+  e.pos.x, e.pos.y = bulletvector(e.pos.x, e.pos.y, e.targetpos.x, e.targetpos.y)
+end)
+
 -- gunsight control system.
-s_control = sys({"control", "pos", "appearance"},
+s_control = sys({"control", "pos", "size"},
 function(e)
   local newx = e.pos.x
   local newy = e.pos.y
@@ -210,108 +248,135 @@ function(e)
   if (btn(2)) newy -= e.control.speed
   if (btn(3)) newy += e.control.speed
   -- world borders
-  e.pos.x = mid(0, newx, 127 - e.appearance.w + 1)
-  e.pos.y = mid(0, newy, 127 - e.appearance.h + 1)
+  e.pos.x = mid(0, newx, 127 - e.size.w + 1)
+  e.pos.y = mid(0, newy, 127 - e.size.h + 1)
 end)
 
 -- shoot to where the sight is
-s_shoot = sys({"control", "pos", "appearance"},
+s_bmshoot = sys({"control", "pos", "size"},
 function(e)
-  local target_x = 0
-  local target_y = 0
   -- O
-  if (btnp(4)) then
-    -- TODO check if can shoot
-    local bm_x = 63
-    local bm_y = 63
+  -- shoot if cooldown passed
+  if (btnp(4) and t() > bm_gun_ready_t) then
+    local bm_x, bm_y = 63, 63
     -- sight center
-    target_x = e.pos.x + (e.appearance.w/2)
-    target_y = e.pos.y + (e.appearance.h/2)
-    local e_bullet = mk_bullet(bm_x, bm_y, target_x, target_y)
-    add(ents, e_bullet)
-    sfx(sound_shot)
+    local tgt_x = e.pos.x + (e.size.w/2)
+    local tgt_y = e.pos.y + (e.size.h/2)
+    bm_x, bm_y = bulletvector(bm_x, bm_y, tgt_x, tgt_y, 8)
+    shoot(bm_x, bm_y, tgt_x, tgt_y, e_bm)
+    bm_gun_ready_t = t() + bm_gun_rld_delay
   end
   -- X
   if (btnp(5)) then
-    debug = not debug
+    --debug = not debug
   end
 end)
 
--- move bullet 1 step from start to end
-s_mvbullet = sys({"pos", "targetpos"},
+s_dstrshoot = sys({"dstr", "pos", "gun"},
 function(e)
-  if (e.pos.x == e.targetpos.x or e.pos.y == e.targetpos.y) then
-    --    or e.pos.x < 0 or e.pos.x > 127 or e.pos.y < 0 or e.pos.y > 127) then
-    del(ents, e)
+  if (t() > e.gun.ready_t) then
+    -- target close to bm
+    local tgt_x, tgt_y = 54 + rnd(20), 54 + rnd(20)
+    -- bullet origin few pixels
+    -- towards target not to hit
+    -- dstr itself
+    local x, y = bulletvector(e.pos.x, e.pos.y, tgt_x, tgt_y, 8)
+    shoot(x, y, tgt_x, tgt_y, e)
+    e.gun.ready_t = t() + e.gun.rld_delay + rnd(e.gun.rld_rnd)
   end
-
-  -- collision detection
-if (is_entity_collision(e, e.pos.x, e.pos.y)) then
-  -- TODO: hit
-  sfx(sound_explosion)
-  del(ents, e)
-  end
-  e.pos.x, e.pos.y = bulletvector(e.pos.x, e.pos.y, e.targetpos.x, e.targetpos.y)
 end)
 
--- TODO: gunsight sway
-s_sway = sys()
-
--- bullet drawing system.
-s_drawbullet = sys({"pos", "targetpos"},
+-- detect collisions between collidable entities
+s_entcoll = sys({"collidable", "size", "pos"},
 function(e)
-  if (debug) then
-    pset(e.targetpos.x, e.targetpos.y, 5)
+  for e2 in all(ents) do
+    if (e != e2
+    and e2.collidable
+    and e2.size
+    and e2.pos
+    and overlap(e, e2)) then
+      if (e.shooter == e) then
+        return
+      end
+      -- collision between e, e2
+      handle_collision(e, e2)
+    end
   end
-    --[[
-  line(e.pos.x, e.pos.y, e.targetpos.x, e.targetpos.y, 5)
-  pset(e.pos.x, e.pos.y, 14)
-  --]]
 end)
 
 -- sprite drawing system.
-s_draw = sys({"pos", "appearance"},
+s_draw = sys({"pos", "sprite"},
 function(e)
-  spr(e.appearance.sprite, e.pos.x, e.pos.y)
+  spr(e.sprite.sprite, e.pos.x, e.pos.y)
 end)
 
 -->8
 -- ##################### helpers #############################################
 
--- checks if e would collide
--- with any entity with sprite
--- in ents.
--- e    - entity to compare
--- newx - e is going there
--- newy - e is going there
-function is_entity_collision(e, newx, newy)
-  -- note: performance problem
-  -- when there's a lot of e's
-  -- b/c we iterate all twice on
-  -- every update
-  for e2 in all(ents) do
-    if (e != e2
-    and e2.appearance
-    and e2.pos
-    and overlap(e, newx, newy, e2)) then
-      return true
-    end
+-- shoot a bullet from 0 to 1
+function shoot(x0, y0, x1, y1, shooter)
+  local e_bullet = mk_bullet(x0, y0, x1, y1, shooter)
+  add(ents, e_bullet)
+  sfx(sound_shot)
+end
+
+-- calc next position on vector
+-- from current to final pos
+function bulletvector(x0, y0, x1, y1, speed)
+  -- speed per tick
+  speed = speed and speed or bullet_speed
+  -- trj = trajectory
+  -- trj = end_pos - start_pos
+  local dx = x1 - x0
+  local dy = y1 - y0
+  -- distance to end_pos, c^2 = a^2 + b^2
+  local dist = sqrt(dx^2 + dy^2)
+  if (dist > speed) then
+    local ratio = speed / dist
+    local bullet_vx = dx * ratio
+    local bullet_vy = dy * ratio
+    xnew = bullet_vx + x0
+    ynew = bullet_vy + y0
+  else
+    -- at the target
+    xnew = x1
+    ynew = y1
   end
-  return false
+  return xnew, ynew
+end
+
+-- collision handling
+function handle_collision(e1, e2)
+  sfx(sound_explosion)
+  if (not e1.bm) then
+    del(ents, e1)
+  else
+    -- hit bm
+    sfx(sound_explosion)
+    lives_lost += 50 + flr(rnd(50))
+  end
+  if (e1.dstr or e2.dstr) then
+    del(ents, e2)
+    -- create a new dstr
+    local e_dstr = mk_dstr()
+    add(ents, e_dstr)
+    lives_lost += 30 + flr(rnd(50))
+  end
 end
 
 -- detect if box a and b overlap.
 -- both a and b must have comps
--- appearance, pos
+-- size, pos
 -- original: https://mboffin.itch.io/pico8-overlap
-function overlap(a,newx,newy,b)
-  assert(a.appearance)
-  assert(b.appearance)
+function overlap(a,b)
+  assert(a.pos)
   assert(b.pos)
-  return not (newx >= b.pos.x + b.appearance.w
-           or newy >= b.pos.y + b.appearance.h
-           or newx + a.appearance.w <= b.pos.x
-           or newy + a.appearance.h <= b.pos.y)
+  assert(a.size)
+  assert(b.size)
+  return not (a.pos.x >= b.pos.x + b.size.w
+           or a.pos.y >= b.pos.y + b.size.h
+           or a.pos.x + a.size.w <= b.pos.x
+           or a.pos.y + a.size.h <= b.pos.y)
 end
 
 -- print string x-centered
@@ -332,30 +397,6 @@ function str_xcenter(str, x)
   return (x or 64) - w
 end
 
--- calc next position on vector
--- from current to final pos
-function bulletvector(x0, y0, x1, y1)
-  -- speed per tick
-  local speed = 0.8
-  -- trj = trajectory
-  -- trj = end_pos - start_pos
-  local dx = x1 - x0
-  local dy = y1 - y0
-  -- distance to end_pos, c^2 = a^2 + b^2
-  local dist = sqrt(dx^2 + dy^2)
-  if (dist > speed) then
-    local ratio = speed / dist
-    local bullet_vx = dx * ratio
-    local bullet_vy = dy * ratio
-    xnew = bullet_vx + x0
-    ynew = bullet_vy + y0
-  else
-    -- at the target
-    xnew = x1
-    ynew = y1
-  end
-  return xnew, ynew
-end
 __gfx__
 00000000111111111111111100600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 000000001111111111c1111106660000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
