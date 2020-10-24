@@ -32,12 +32,13 @@ software.
 
 -- master container of entities
 ents = {}
--- debug mode on/off
-debug = false
+-- entity shortcut
+e_bm = nil
 -- sounds
 sound_explosion = 0
 sound_shot = 1
-e_bm = nil
+-- debug mode on/off
+debug = false
 
 -- ########### special functions #############################################
 
@@ -47,13 +48,12 @@ function _init()
   lives_lost = 0
   bm_gun_ready_t = 0
   bm_gun_rld_delay = 0.5
-  -- create entities
+  -- create and store entities
   e_bm = mk_bm()
-  local e_dstr1 = mk_dstr()
-  e_sight = mk_sight()
-  -- store ents in master table
   add(ents, e_bm)
+  local e_dstr1 = mk_dstr()
   add(ents, e_dstr1)
+  local e_sight = mk_sight()
   add(ents, e_sight)
 end
 
@@ -78,16 +78,33 @@ function _draw()
   print_xcenter(lives_lost.." lives lost", 122, 5)
 
   -- draw bm
-  spr(16, 60, 60)
-  spr(32, 60, 68)
+  spr(16, e_bm.pos.x, e_bm.pos.y)
+  spr(32, e_bm.pos.x, e_bm.pos.y+8)
 
   -- run draw systems
   s_draw(ents)
   
   if (debug) then
-    print("x:"..e_sight.pos.x, 86, 0, 14)
-    print("y:"..e_sight.pos.y, 109, 0, 14)
-    print("dbg:"..(debug and 't' or 'f'), 108, 6, 14)
+    local y = 0
+    print("#ents:"..#ents, 0, y, 14)
+    y += 6
+    for i=1,#ents do
+      e = ents[i]
+      print("e"..i..":"..tostr(e)..": x="..e.pos.x..", y="..e.pos.y, 0, y, 14)
+      y += 6
+      for ckey,cval in pairs(e) do
+        --print(tostr(ckey)..":"..tostr(cval), 0, y, 14)
+        if (ckey == "shooter") then
+          print("  shooter: "..tostr(cval), 0, y, 14)
+          y += 6
+          -- look inside shooter
+          for skey,sval in pairs(cval) do
+            print("    "..skey..": "..tostr(sval), 0, y, 14)
+            y += 6
+          end
+        end
+      end
+    end
   end
 end
 
@@ -258,17 +275,17 @@ function(e)
   -- O
   -- shoot if cooldown passed
   if (btnp(4) and t() > bm_gun_ready_t) then
-    local bm_x, bm_y = 63, 63
     -- sight center
     local tgt_x = e.pos.x + (e.size.w/2)
     local tgt_y = e.pos.y + (e.size.h/2)
-    bm_x, bm_y = bulletvector(bm_x, bm_y, tgt_x, tgt_y, 8)
+    local bm_x, bm_y = 63, 63
+    -- bm_x, bm_y = bulletvector(bm_x, bm_y, tgt_x, tgt_y, 8)
     shoot(bm_x, bm_y, tgt_x, tgt_y, e_bm)
     bm_gun_ready_t = t() + bm_gun_rld_delay
   end
   -- X
   if (btnp(5)) then
-    --debug = not debug
+    debug = not debug
   end
 end)
 
@@ -280,8 +297,8 @@ function(e)
     -- bullet origin few pixels
     -- towards target not to hit
     -- dstr itself
-    local x, y = bulletvector(e.pos.x, e.pos.y, tgt_x, tgt_y, 8)
-    shoot(x, y, tgt_x, tgt_y, e)
+    --local x, y = bulletvector(e.pos.x, e.pos.y, tgt_x, tgt_y, 8)
+    shoot(e.pos.x, e.pos.y, tgt_x, tgt_y, e)
     e.gun.ready_t = t() + e.gun.rld_delay + rnd(e.gun.rld_rnd)
   end
 end)
@@ -295,11 +312,14 @@ function(e)
     and e2.size
     and e2.pos
     and overlap(e, e2)) then
-      if (e.shooter == e) then
-        return
+      -- don't die of own bullet
+      if ((e.shooter and e.shooter.shooter == e2)
+      or (e2.shooter and e2.shooter.shooter == e)) then
+        --skip return
+      else
+        -- collision between e, e2
+        handle_collision(e, e2)
       end
-      -- collision between e, e2
-      handle_collision(e, e2)
     end
   end
 end)
