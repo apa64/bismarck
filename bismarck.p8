@@ -51,8 +51,11 @@ function _init()
   -- create and store entities
   e_bm = mk_bm()
   add(ents, e_bm)
-  local e_dstr1 = mk_dstr()
+  local e_dstr1 = mk_dstr(nil, 80, 70, 55, 80+55, 70, 0, 0.4)
   add(ents, e_dstr1)
+  local e_dstr2 = mk_dstr(nil, 50, 50, 60, 50-60, 60, 180, 0.4)
+  add(ents, e_dstr2)
+
   local e_sight = mk_sight()
   add(ents, e_sight)
 end
@@ -83,7 +86,7 @@ function _draw()
 
   -- run draw systems
   s_draw(ents)
-  
+
   if (debug) then
     local y = 0
     print("#ents:"..#ents, 0, y, 14)
@@ -122,13 +125,29 @@ function mk_bm()
 end
 
 -- a destroyer
-function mk_dstr()
+function mk_dstr(dstr, x, y, r, posx, posy, angle, speed)
   local e = ent()
+  local x = x or 80
+  local y = y or 70
+  local r = r or 55
+  local angle = angle or 0
+  local speed = speed or 0.4
+  if (dstr) then
+    x = dstr.mvtrack.x
+    y = dstr.mvtrack.y
+    r = dstr.mvtrack.r
+    speed = dstr.mvtrack.speed
+    angle = dstr.mvtrack.initial_angle
+  end
+  local posx = posx or (x+r)
+  local posy = posy or y
+
   e += cmp("dstr")
-  e += c_pos(20, 20)
   e += c_sprite(3)
   e += c_size(5, 8)
-  e += c_mvtrack()
+  if (rnd(100) < 40) speed *= -1
+  e += c_mvtrack(x, y, r, angle, speed)
+  e += c_pos(posx, posy)
   e += c_collidable()
   e += c_gun()
   return e
@@ -184,7 +203,7 @@ c_gun = function(rld_delay, rld_rnd)
   rld_rnd = rld_rnd or 3
   return cmp("gun",
     {
-      ready_t = rld_delay + rnd(rld_rnd),
+      ready_t = t() + rld_delay + rnd(rld_rnd),
       rld_delay = rld_delay,
       rld_rnd = rld_rnd
    })
@@ -204,12 +223,19 @@ c_control = function(speed)
 end
 
 -- movement track params
-c_mvtrack = function()
+-- x, y   origo x,y
+-- r      radius
+-- angle  initial angle
+-- speed  delta angle per tick
+c_mvtrack = function(x, y, r, angle, speed)
   return cmp("mvtrack",
     {
-      speed = 0.4,
-      r = 55,
-      angle = 0
+      x = x or 63,
+      y = y or 63,
+      r = r or 55,
+      angle = angle or 0,
+      speed = speed or 0.4,
+      initial_angle = angle
     })
 end
 
@@ -229,15 +255,14 @@ end
 -- see this for anim: https://mboffin.itch.io/pico8-simple-animation
 s_mvtrack = sys({"pos", "mvtrack"},
 function(e)
-  -- TODO: rewrite
-  originx = 70
-  originy = 70
   --moves along track
   e.mvtrack.angle += e.mvtrack.speed
-  e.pos.x = originx + e.mvtrack.r * cos(e.mvtrack.angle/360)
-  e.pos.y = originy + e.mvtrack.r * sin(e.mvtrack.angle/360)
-  if e.mvtrack.angle>360 then e.mvtrack.angle=0
-  elseif e.mvtrack.angle<0 then e.mvtrack.angle=360
+  e.pos.x = e.mvtrack.x + e.mvtrack.r * cos(e.mvtrack.angle/360)
+  e.pos.y = e.mvtrack.y + e.mvtrack.r * sin(e.mvtrack.angle/360)
+  if (e.mvtrack.angle > 360) then
+    e.mvtrack.angle = 0
+  elseif (e.mvtrack.angle < 0) then
+    e.mvtrack.angle = 360
   end
 end)
 
@@ -375,12 +400,16 @@ function handle_collision(e1, e2)
     sfx(sound_explosion)
     lives_lost += 50 + flr(rnd(50))
   end
-  if (e1.dstr or e2.dstr) then
-    del(ents, e2)
-    -- create a new dstr
-    local e_dstr = mk_dstr()
-    add(ents, e_dstr)
+  -- hit dstr?
+  local e_dstr = nil
+  if (e1.dstr) e_dstr = e1
+  if (e2.dstr) e_dstr = e2
+  if (e_dstr) then
+    del(ents, e_dstr)
     lives_lost += 30 + flr(rnd(50))
+    -- create a new dstr
+    local e_newdstr = mk_dstr(e_dstr)
+    add(ents, e_newdstr)
   end
 end
 
