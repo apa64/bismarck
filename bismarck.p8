@@ -42,7 +42,29 @@ debug = false
 
 -- ########### special functions #############################################
 
-function _init()
+-- ######################## menu
+
+function _init() menu_init() end
+
+function menu_init()
+  _update = menu_update
+  _draw = menu_draw
+end
+
+function menu_update()
+  if (btnp(4)) game_init() -- change state to play the game
+end
+
+function menu_draw()
+  cls(0)
+  print_xcenter("last stand of the bismarck", 60, 12)  -- menu draw code
+end
+
+-- ######################## game
+
+function game_init()
+  _update = game_update
+  _draw = game_draw
   -- todo move in entity or something
   bullet_speed = 0.8
   lives_lost = 0
@@ -60,7 +82,10 @@ function _init()
   add(ents, e_sight)
 end
 
-function _update()
+function game_update()
+  if (lives_lost > 1000) then
+    gameover_init()
+  end
   -- run systems
   s_control(ents)
   s_bmshoot(ents)
@@ -68,13 +93,9 @@ function _update()
   s_mvbullet(ents)
   s_entcoll(ents)
   s_dstrshoot(ents)
-  if (lives_lost > 1000) then
-    -- TODO: end game
-    print("todo end game")
-  end
 end
 
-function _draw()
+function game_draw()
   cls(1)
   map()
   print_xcenter("last stand of the bismarck", 2, 13)
@@ -109,6 +130,21 @@ function _draw()
       end
     end
   end
+end
+
+-- ################### game over
+
+function gameover_init()
+  _update = gameover_update
+  _draw = gameover_draw
+end
+
+function gameover_update()
+  if (btnp(4)) menu_init()
+end
+
+function gameover_draw()
+  print_xcenter("game over", 60, 8)
 end
 
 -->8
@@ -392,19 +428,20 @@ end
 
 -- collision handling
 function handle_collision(e1, e2)
-  sfx(sound_explosion)
   if (not e1.bm) then
     del(ents, e1)
   else
     -- hit bm
     sfx(sound_explosion)
     lives_lost += 50 + flr(rnd(50))
+    return
   end
   -- hit dstr?
   local e_dstr = nil
   if (e1.dstr) e_dstr = e1
   if (e2.dstr) e_dstr = e2
   if (e_dstr) then
+    sfx(sound_explosion)
     del(ents, e_dstr)
     lives_lost += 30 + flr(rnd(50))
     -- create a new dstr
