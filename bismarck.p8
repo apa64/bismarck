@@ -43,7 +43,7 @@ sound_explosion_dstr = 0
 sound_explosion_bm = 0
 sound_shot_dstr = 1
 sound_shot_bm = 1
-lives_total = 2197
+lives_total = 2100
 
 -- ########### special functions #############################################
 
@@ -149,17 +149,24 @@ end
 -- ################### game over
 
 function gameover_init()
+  t_gameover = t()
+  t_restart_delay = 1
   ents = {}
   _update = gameover_update
   _draw = gameover_draw
 end
 
 function gameover_update()
-  if (btnp(5)) menu_init()
+  if ((t() > t_gameover + t_restart_delay) and btnp(5)) menu_init()
 end
 
 function gameover_draw()
-  print_xcenter("game over", 60, 8)
+  print_xcenter("game over", 56, 8)
+  if (t() > t_gameover + t_restart_delay) then
+    print_xcenter("only 114 sailors survived", 30, 7)
+    print_xcenter("of the 2200 man crew", 36, 7)
+    print_xcenter("press ❎ to continue", 82, 7)
+  end
 end
 
 -->8
