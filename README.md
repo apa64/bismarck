@@ -24,9 +24,7 @@ run
 
 ## Design
 
-The Bismarck is being shelled by the Royal Navy destroyers. Bismarck shoots back.
-
-TODO: add some documentation
+The player defends the Bismarck by firing at the Royal Navy destroyers. The destroyers shoot at the Bismarck. The game is over when the death toll of the battle has been reached.
 
 <img src="https://user-images.githubusercontent.com/2697454/94450715-44825580-01b6-11eb-9001-7726f1e127dc.jpg" width="256" alt="IMG_20200925_202947"/>
 
@@ -41,10 +39,6 @@ The game.
 ### `tinyecs-1.1.lua`
 
 [KatrinaKitten's Tiny ECS Framework v1.1](https://www.lexaloffle.com/bbs/?tid=39021) implementation, added in carts with `#include`.
-
-## Roadmap
-
-So far only in my notes or Trello.
 
 ## Resources
 
