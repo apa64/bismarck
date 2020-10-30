@@ -34,11 +34,16 @@ software.
 ents = {}
 -- entity shortcut
 e_bm = nil
--- sounds
-sound_explosion = 0
-sound_shot = 1
 -- debug mode on/off
 debug = false
+
+-- constants
+
+sound_explosion_dstr = 0
+sound_explosion_bm = 0
+sound_shot_dstr = 1
+sound_shot_bm = 1
+lives_total = 2197
 
 -- ########### special functions #############################################
 
@@ -52,24 +57,33 @@ function menu_init()
 end
 
 function menu_update()
-  if (btnp(4)) game_init() -- change state to play the game
+  if (btnp(5)) game_init() -- change state to play the game
 end
 
 function menu_draw()
   cls(0)
-  print_xcenter("last stand of the bismarck", 60, 12)  -- menu draw code
+  print_xcenter("last stand of the bismarck", 40, 12)  -- menu draw code
+  print_xcenter("defend bismarck from the", 60, 13)
+  print_xcenter("royal navy destroyers", 66, 13)
+  print_xcenter("press ❎ to start", 82, 6)
+  print("fire   ❎", 33, 95, 6)
+  print("aim", 33, 105, 6)
+  print("  ⬆️", 53, 102, 6)
+  print("⬅️⬇️➡️", 53, 109, 6)
+  print_xcenter("(c) antti ollilainen 2020", 122, 5)
 end
 
 -- ######################## game
 
 function game_init()
+  ents = {}
   _update = game_update
   _draw = game_draw
   -- todo move in entity or something
   bullet_speed = 0.8
   lives_lost = 0
   bm_gun_ready_t = 0
-  bm_gun_rld_delay = 0.5
+  bm_gun_rld_delay = 0.7
   -- create and store entities
   e_bm = mk_bm()
   add(ents, e_bm)
@@ -83,22 +97,22 @@ function game_init()
 end
 
 function game_update()
-  if (lives_lost > 1000) then
+  if (lives_lost > lives_total) then
     gameover_init()
   end
   -- run systems
   s_control(ents)
   s_bmshoot(ents)
   s_mvtrack(ents)
+  s_dstrshoot(ents)
   s_mvbullet(ents)
   s_entcoll(ents)
-  s_dstrshoot(ents)
 end
 
 function game_draw()
   cls(1)
   map()
-  print_xcenter("last stand of the bismarck", 2, 13)
+  --print_xcenter("last stand of the bismarck", 2, 13)
   print_xcenter(lives_lost.." lives lost", 122, 5)
 
   -- draw bm
@@ -135,12 +149,13 @@ end
 -- ################### game over
 
 function gameover_init()
+  ents = {}
   _update = gameover_update
   _draw = gameover_draw
 end
 
 function gameover_update()
-  if (btnp(4)) menu_init()
+  if (btnp(5)) menu_init()
 end
 
 function gameover_draw()
@@ -193,7 +208,7 @@ end
 function mk_sight()
   local e = ent()
   e += cmp("sight")
-  e += c_pos(100, 100)
+  e += c_pos(60, 40)
   e += c_sprite(48)
   e += c_size(7, 7)
   e += c_control(2)
@@ -235,7 +250,7 @@ c_targetpos = function(x, y)
 end
 
 c_gun = function(rld_delay, rld_rnd)
-  rld_delay = rld_delay or 3
+  rld_delay = rld_delay or 1
   rld_rnd = rld_rnd or 3
   return cmp("gun",
     {
@@ -333,9 +348,9 @@ end)
 -- shoot to where the sight is
 s_bmshoot = sys({"control", "pos", "size"},
 function(e)
-  -- O
+  -- x
   -- shoot if cooldown passed
-  if (btnp(4) and t() > bm_gun_ready_t) then
+  if (btnp(5) and t() > bm_gun_ready_t) then
     -- sight center
     local tgt_x = e.pos.x + (e.size.w/2)
     local tgt_y = e.pos.y + (e.size.h/2)
@@ -344,8 +359,8 @@ function(e)
     shoot(bm_x, bm_y, tgt_x, tgt_y, e_bm)
     bm_gun_ready_t = t() + bm_gun_rld_delay
   end
-  -- X
-  if (btnp(5)) then
+  -- z / o
+  if (btnp(4)) then
     debug = not debug
   end
 end)
@@ -398,7 +413,8 @@ end)
 function shoot(x0, y0, x1, y1, shooter)
   local e_bullet = mk_bullet(x0, y0, x1, y1, shooter)
   add(ents, e_bullet)
-  sfx(sound_shot)
+  if (shooter.bm) sfx(sound_shot_bm)
+  if (shooter.dstr) sfx(sound_shot_dstr)
 end
 
 -- calc next position on vector
@@ -428,22 +444,23 @@ end
 
 -- collision handling
 function handle_collision(e1, e2)
-  if (not e1.bm) then
-    del(ents, e1)
-  else
-    -- hit bm
-    sfx(sound_explosion)
-    lives_lost += 50 + flr(rnd(50))
-    return
-  end
-  -- hit dstr?
+  if (e1.bullet) del(ents, e1)
+  if (e2.bullet) del(ents, e2)
   local e_dstr = nil
-  if (e1.dstr) e_dstr = e1
-  if (e2.dstr) e_dstr = e2
+  if (e1.bm or e2.bm) then
+    sfx(sound_explosion_bm)
+    lives_lost += 200 + flr(rnd(50))
+  elseif (e1.dstr) then
+    e_dstr = e1
+  elseif (e2.dstr) then
+    e_dstr = e2
+  end
+
   if (e_dstr) then
-    sfx(sound_explosion)
+    -- hit dstr
+    sfx(sound_explosion_dstr)
     del(ents, e_dstr)
-    lives_lost += 30 + flr(rnd(50))
+    lives_lost += 100 + flr(rnd(50))
     -- create a new dstr
     local e_newdstr = mk_dstr(e_dstr)
     add(ents, e_newdstr)
