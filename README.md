@@ -12,7 +12,7 @@ A PICO-8 game for the [Rock Paper Shotgun inaugural Flare Path Game Jam](https:/
 
 ### Installation
 
-Start up PICO-8. Load and run the `.p8` cartridges.
+Start up PICO-8. Load and run the `.p8` cartridge.
 
 ```pico-8
 cd bismarck
@@ -20,7 +20,7 @@ load bismarck.p8
 run
 ```
 
-<img src="https://user-images.githubusercontent.com/2697454/95657992-3e7a6600-0b20-11eb-8aa0-c3df88eff971.gif" width="256" alt="v0.2"/>
+<img src="https://user-images.githubusercontent.com/2697454/97805890-65c8dc80-1c61-11eb-996d-b3444a24b0f7.gif" width="256" alt="v1.0"/>
 
 ## Design
 
