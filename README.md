@@ -63,5 +63,5 @@ This repository is made possible and builds on the work of the following talente
 ## Contact
 
 - GitHub repository: [apa64/bismarck](https://github.com/apa64/bismarck)
-- Twitter [@apa64](https://twitter.com/apa64)
+- Mastodon: [@apa64@dice.camp](https://dice.camp/@apa64)
 - Lexaloffle BBS [@apa64](https://www.lexaloffle.com/bbs/?uid=45600)
